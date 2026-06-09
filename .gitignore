@@ -1,0 +1,21 @@
+# dependencies
+node_modules/
+# build
+dist/
+build/
+# env
+.env
+.env.local
+# uploads (user-generated content; created at runtime, never commit)
+server/uploads/
+uploads/
+# logs
+*.log
+# editor
+.vscode/
+.idea/
+# OS
+.DS_Store
+Thumbs.db
+# coverage
+coverage/

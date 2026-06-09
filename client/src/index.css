@@ -1,0 +1,185 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* =========================================================================
+ * Design tokens (semantic) — the public color contract for the app.
+ *
+ * The app should prefer the named Tailwind aliases (bg-canvas, border-border,
+ * text-primary, …) which resolve to these variables. Existing zinc-* class
+ * usage is supported via the shim block lower down.
+ *
+ * Naming follows Linear / GitHub conventions:
+ *   --bg-*       background surfaces
+ *   --text-*     foreground levels
+ *   --border-*   border weights
+ *   --accent     interactive primary
+ *
+ * Adding a new theme = add another `html[data-theme="…"]` block with the
+ * same variable names. No JS change required.
+ * ===================================================================== */
+
+/* Light is the default at :root so the cascade is unambiguous.
+   Dark is a single-class override with higher specificity (0,1,1 > 0,1,0). */
+:root {
+  --bg-canvas: #f6f5f1;
+  --bg-surface: #eceae2;
+  --bg-sidebar: #efece4;
+  --bg-overlay: rgb(0 0 0 / 0.35);
+  --bg-hover: rgb(0 0 0 / 0.05);
+  --bg-active: rgb(0 0 0 / 0.09);
+
+  --text-primary: #2b2c28;
+  --text-secondary: #45463f;
+  --text-muted: #5f6057;
+  --text-faint: #86867b;
+  --text-inverse: #f4f4f5;
+
+  --border-default: #d8d3c6;
+  --border-muted: #e4dfd2;
+  --border-strong: #bdb7a7;
+
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-muted: rgb(37 99 235 / 0.1);
+
+  --danger: #dc2626;
+  --success: #16a34a;
+  --warning: #d97706;
+
+  color-scheme: light;
+}
+
+html.dark {
+  --bg-canvas: #191919;
+  --bg-surface: #202020;
+  --bg-sidebar: #171717;
+  --bg-overlay: rgb(0 0 0 / 0.55);
+  --bg-hover: rgb(255 255 255 / 0.04);
+  --bg-active: rgb(255 255 255 / 0.08);
+
+  --text-primary: #f4f4f5;
+  --text-secondary: #d4d4d8;
+  --text-muted: #a1a1aa;
+  --text-faint: #71717a;
+  --text-inverse: #18181b;
+
+  --border-default: #2a2a2a;
+  --border-muted: #232323;
+  --border-strong: #3a3a3a;
+
+  --accent: #3b82f6;
+  --accent-hover: #2563eb;
+  --accent-muted: rgb(59 130 246 / 0.15);
+
+  --danger: #ef4444;
+  --success: #22c55e;
+  --warning: #f59e0b;
+
+  color-scheme: dark;
+}
+
+/* =========================================================================
+ * Smooth transitions on theme flip.
+ *
+ * Targets only color-ish properties — never layout — so a theme switch is
+ * a pure compositor repaint. We scope to <body> + a few common interactive
+ * surfaces; transitioning every element is repaint-heavy and unnecessary.
+ *
+ * Respects prefers-reduced-motion.
+ * ===================================================================== */
+@media (prefers-reduced-motion: no-preference) {
+  body,
+  aside,
+  main,
+  header,
+  [role='dialog'],
+  [role='toolbar'],
+  [role='menu'],
+  [role='listbox'] {
+    transition:
+      background-color 140ms ease,
+      color 140ms ease,
+      border-color 140ms ease;
+  }
+}
+
+@layer base {
+  html, body, #root { height: 100%; }
+  body {
+    background-color: var(--bg-canvas);
+    color: var(--text-primary);
+    @apply antialiased;
+  }
+  [contenteditable] { outline: none; }
+  [contenteditable][data-empty='true']::before {
+    content: attr(data-placeholder);
+    color: var(--text-faint);
+    pointer-events: none;
+  }
+
+  /* Inline @-page mention chip. */
+  .pm-mention {
+    display: inline;
+    cursor: pointer;
+    border-radius: 4px;
+    padding: 0 2px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    text-decoration: none;
+    box-shadow: inset 0 -1px 0 var(--border);
+  }
+  .pm-mention:hover {
+    background-color: var(--accent-soft, rgba(120, 120, 255, 0.12));
+    color: var(--text-primary);
+  }
+
+  /* Inline comment-anchored span. */
+  .pm-comment {
+    background-color: rgba(245, 200, 66, 0.28);
+    border-bottom: 2px solid rgba(245, 200, 66, 0.9);
+    cursor: pointer;
+    border-radius: 2px;
+  }
+  .pm-comment:hover {
+    background-color: rgba(245, 200, 66, 0.45);
+  }
+
+  /* Focus ring — visible in both themes, respects reduced motion. */
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+}
+
+/* =========================================================================
+ * Legacy zinc-* shims. Kept narrow & explicit so we can retire them as
+ * components migrate to semantic Tailwind aliases. DO NOT add new entries
+ * here — port the component to use bg-canvas / bg-surface / text-primary
+ * / text-muted / border-border instead.
+ * ===================================================================== */
+html.light .text-zinc-100 { color: var(--text-primary); }
+html.light .text-zinc-200 { color: var(--text-secondary); }
+html.light .text-zinc-300 { color: var(--text-secondary); }
+html.light .text-zinc-400 { color: var(--text-muted); }
+html.light .text-zinc-500 { color: var(--text-faint); }
+
+html.light .bg-zinc-700\/60 { background-color: rgb(228 228 231 / 0.6); }
+html.light .bg-zinc-800       { background-color: #e4e4e7; }
+html.light .bg-zinc-800\/60   { background-color: rgb(228 228 231 / 0.6); }
+html.light .bg-zinc-900       { background-color: #f4f4f5; }
+html.light .bg-zinc-900\/60   { background-color: rgb(244 244 245 / 0.6); }
+
+html.light .hover\:bg-zinc-700\/60:hover { background-color: rgb(228 228 231 / 0.8); }
+html.light .hover\:bg-zinc-800:hover     { background-color: #e4e4e7; }
+html.light .hover\:bg-zinc-800\/60:hover { background-color: rgb(228 228 231 / 0.6); }
+html.light .hover\:text-zinc-100:hover   { color: var(--text-primary); }
+html.light .hover\:text-zinc-200:hover   { color: var(--text-secondary); }
+
+html.light .border-zinc-700 { border-color: var(--border-strong); }
+html.light .border-zinc-800 { border-color: var(--border-default); }
+
+html.light .ring-accent\/40 { --tw-ring-color: rgb(37 99 235 / 0.4); }
+html.light .bg-accent\/10   { background-color: rgb(37 99 235 / 0.08); }
+
