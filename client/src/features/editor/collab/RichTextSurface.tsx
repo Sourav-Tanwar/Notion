@@ -46,6 +46,7 @@ import { htmlToDoc, docToHtml, docToPlain } from './htmlBridge';
 import { markdownInputRules } from './inputRules';
 import { focusedView } from './focusedView';
 import { blockViews } from './blockViews';
+import { autocompletePlugin, acceptAutocomplete, dismissAutocomplete } from './autocomplete';
 import { makeMentionView } from './mentionNodeView';
 import { useCollab } from './CollabContext';
 import { useBlocksStore } from '@/stores/blocks.store';
@@ -147,6 +148,7 @@ export function RichTextSurface({
         'Mod-u': toggleMark(schema.marks.underline),
       }),
       keymap(baseKeymap),
+      autocompletePlugin(),
     ];
 
     const state = EditorState.create({ schema, plugins });
@@ -167,6 +169,15 @@ export function RichTextSurface({
         ...(placeholder ? { 'data-placeholder': placeholder } : {}),
       },
       handleKeyDown(viewArg, event) {
+        // Ghost-text autocomplete: Tab accepts an active suggestion (winning
+        // over Tab-to-indent only when one is showing); Escape dismisses it.
+        if (event.key === 'Tab' && acceptAutocomplete(viewArg)) {
+          event.preventDefault();
+          return true;
+        }
+        if (event.key === 'Escape' && dismissAutocomplete(viewArg)) {
+          return true;
+        }
         // Forward to BlockNode synchronously. We wrap as a React-style
         // synthetic so the existing handler (which reads .key, .shiftKey,
         // .preventDefault, .currentTarget.innerText) can run unchanged.

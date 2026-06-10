@@ -3,6 +3,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useShallow } from 'zustand/react/shallow';
 import {
+  getFlatBlockOrder,
   selectBlock,
   selectChildBlockIds,
   useBlocksStore,
@@ -203,13 +204,32 @@ function BlockNodeImpl({ id, index }: Props): JSX.Element | null {
 
   const handleClickHandle = useCallback(
     (e: React.MouseEvent) => {
+      if (!block) return;
+      // The drag handle doubles as a selection affordance:
+      //   plain click      → select just this block
+      //   shift-click      → extend a range from the anchor to this block
+      //   ctrl / cmd-click → toggle this block in/out of the selection
+      const sel = useSelectionStore.getState();
       if (e.shiftKey) {
-        useSelectionStore.getState().toggle(id);
-        e.stopPropagation();
-        e.preventDefault();
+        const order = getFlatBlockOrder(block.pageId);
+        const anchor = sel.anchorId ?? id;
+        const a = order.indexOf(anchor);
+        const b = order.indexOf(id);
+        if (a !== -1 && b !== -1) {
+          const [lo, hi] = a <= b ? [a, b] : [b, a];
+          sel.setSelection(order.slice(lo, hi + 1), anchor);
+        } else {
+          sel.setSelection([id], id);
+        }
+      } else if (e.metaKey || e.ctrlKey) {
+        sel.toggle(id);
+      } else {
+        sel.setSelection([id], id);
       }
+      e.stopPropagation();
+      e.preventDefault();
     },
-    [id],
+    [block, id],
   );
 
   if (!block || !spec) return null;
@@ -252,7 +272,7 @@ function BlockNodeImpl({ id, index }: Props): JSX.Element | null {
             {...attributes}
             {...listeners}
             onClick={handleClickHandle}
-            aria-label="drag or shift-click to select"
+            aria-label="drag to move, click to select (shift-click for range)"
             className="rounded px-0.5 text-zinc-400 hover:bg-black/5 hover:text-zinc-700 dark:text-zinc-500 dark:hover:bg-white/10 dark:hover:text-zinc-200 cursor-grab"
           >
             ⋮⋮

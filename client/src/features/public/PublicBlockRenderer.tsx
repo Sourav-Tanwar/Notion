@@ -157,6 +157,41 @@ function RenderNode({ node }: { node: Node }): JSX.Element {
     }
     case 'divider':
       return <hr className="my-4 border-zinc-200 dark:border-zinc-700" />;
+    case 'table': {
+      const rows = Array.isArray(block.props.rows) ? (block.props.rows as unknown[][]) : [];
+      if (!rows.length) return <></>;
+      const header = block.props.header !== false;
+      return (
+        <div className="my-2 w-full overflow-x-auto">
+          <table className="border-collapse text-sm">
+            <tbody>
+              {rows.map((row, r) => (
+                <tr key={r}>
+                  {(Array.isArray(row) ? row : []).map((cell, c) => {
+                    const text = cell == null ? '' : String(cell);
+                    return header && r === 0 ? (
+                      <th
+                        key={c}
+                        className="border border-zinc-200 bg-zinc-50 px-2 py-1 text-left font-semibold dark:border-zinc-700 dark:bg-zinc-800"
+                      >
+                        {text}
+                      </th>
+                    ) : (
+                      <td
+                        key={c}
+                        className="border border-zinc-200 px-2 py-1 align-top dark:border-zinc-700"
+                      >
+                        {text}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+    }
     case 'image': {
       const url = block.props.url as string | undefined;
       if (!url) return <></>;

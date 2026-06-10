@@ -21,6 +21,8 @@ export const BLOCK_TYPES = [
   'columns',
   'column',
   'database',
+  'table',
+  'ai',
 ] as const;
 export type BlockType = (typeof BLOCK_TYPES)[number];
 

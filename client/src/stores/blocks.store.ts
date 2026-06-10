@@ -49,6 +49,8 @@ export interface BlocksState {
   redo: () => boolean;
   canUndo: () => boolean;
   canRedo: () => boolean;
+  /** Run several mutations as a SINGLE undo step (e.g. an AI insertion). */
+  runBatch: (fn: () => void) => void;
 
   // Persistence
   flushNow: () => Promise<void>;
@@ -101,13 +103,48 @@ export const useBlocksStore = create<BlocksState>((set, get) => {
     future.length = 0;
     lastSnapAt = now;
   };
+  /** Force a fresh undo step, bypassing the coalescing window. Used to wrap a
+   *  multi-mutation batch (e.g. an AI insertion) into ONE undo entry. */
+  const pushHistoryForce = (): void => {
+    if (historySuspended) return;
+    past.push(snapshot());
+    if (past.length > HISTORY_LIMIT) past.shift();
+    future.length = 0;
+    lastSnapAt = Date.now();
+  };
 
-  const markDirtyMany = (ids: Iterable<ID>): void =>
+  /**
+   * Apply a history snapshot AND reconcile persistence. Crucially, any block
+   * that exists now but NOT in the target snapshot was removed by this undo/redo
+   * and must be deleted on the server — otherwise it survives in Mongo and the
+   * next fetchPage (refresh or realtime refetch) resurrects it. Blocks present
+   * in the target are (re)marked dirty so the server gets the rolled-back state.
+   */
+  const applySnapshot = (target: Snap): void => {
+    const curIds = Object.keys(get().byId);
+    historySuspended = true;
+    set(target);
+    historySuspended = false;
+    const targetIds = new Set(Object.keys(target.byId));
     set((s) => {
-      const next = new Set(s.dirty);
-      for (const id of ids) next.add(id);
-      return { dirty: next };
+      const dirty = new Set(s.dirty);
+      const deletedBuffer = new Set(s.deletedBuffer);
+      // Surviving / re-created blocks: upsert, and cancel any pending delete.
+      for (const id of targetIds) {
+        dirty.add(id);
+        deletedBuffer.delete(id);
+      }
+      // Blocks the swap removed: delete server-side, drop any pending upsert.
+      for (const id of curIds) {
+        if (!targetIds.has(id)) {
+          deletedBuffer.add(id);
+          dirty.delete(id);
+        }
+      }
+      return { dirty, deletedBuffer };
     });
+    scheduleFlush();
+  };
   /* ---------- autosave (debounced bulk flush) ---------- */
   const flush = async () => {
     const s = get();
@@ -558,12 +595,7 @@ export const useBlocksStore = create<BlocksState>((set, get) => {
       if (!past.length) return false;
       future.push(snapshot());
       const prev = past.pop()!;
-      historySuspended = true;
-      set(prev);
-      historySuspended = false;
-      // Mark everything dirty so server picks up the rollback.
-      markDirtyMany(Object.keys(prev.byId));
-      scheduleFlush();
+      applySnapshot(prev);
       return true;
     },
 
@@ -571,16 +603,24 @@ export const useBlocksStore = create<BlocksState>((set, get) => {
       if (!future.length) return false;
       past.push(snapshot());
       const next = future.pop()!;
-      historySuspended = true;
-      set(next);
-      historySuspended = false;
-      markDirtyMany(Object.keys(next.byId));
-      scheduleFlush();
+      applySnapshot(next);
       return true;
     },
 
     canUndo: () => past.length > 0,
     canRedo: () => future.length > 0,
+
+    runBatch(fn) {
+      // One snapshot of the pre-batch state, then suspend per-mutation history
+      // so the whole batch collapses into a single undo entry.
+      pushHistoryForce();
+      historySuspended = true;
+      try {
+        fn();
+      } finally {
+        historySuspended = false;
+      }
+    },
 
     async flushNow() {
       scheduleFlush.flush();
@@ -608,3 +648,25 @@ export const selectBlock = (id: ID) => (s: BlocksState) => s.byId[id];
 export const selectRootBlockIds = (pageId: ID) => (s: BlocksState) => s.rootByPage[pageId] ?? [];
 export const selectChildBlockIds = (parentId: ID) => (s: BlocksState) => s.childrenOf[parentId] ?? [];
 export const selectIsPageLoaded = (pageId: ID) => (s: BlocksState) => s.loadedPages.has(pageId);
+
+/**
+ * Depth-first list of every visible block id on a page, in render order.
+ * Collapsed toggles hide their children (matching what's on screen), so a
+ * shift-click range only spans blocks the user can actually see. Used to
+ * resolve range selection between two block ids.
+ */
+export function getFlatBlockOrder(pageId: ID): ID[] {
+  const s = useBlocksStore.getState();
+  const out: ID[] = [];
+  const walk = (ids: ID[]): void => {
+    for (const id of ids) {
+      out.push(id);
+      const b = s.byId[id];
+      const collapsed = b?.type === 'toggle' && b.props.open === false;
+      const kids = s.childrenOf[id];
+      if (!collapsed && kids?.length) walk(kids);
+    }
+  };
+  walk(s.rootByPage[pageId] ?? []);
+  return out;
+}

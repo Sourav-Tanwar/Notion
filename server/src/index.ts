@@ -14,6 +14,7 @@ import { commentsRouter } from './modules/comments/comments.routes';
 import { notificationsRouter } from './modules/notifications/notifications.routes';
 import { searchRouter } from './modules/search/search.routes';
 import { databaseRouter } from './modules/database/database.routes';
+import { aiRouter } from './modules/ai/ai.routes';
 import { workspacesRouter } from './modules/workspaces/workspaces.routes';
 import { inviteePreviewRouter } from './modules/workspaces/invitations.routes';
 import { publicShareRouter } from './modules/workspaces/shareLinks.routes';
@@ -100,6 +101,7 @@ async function bootstrap() {
   app.use('/api/notifications', notificationsRouter);
   app.use('/api/search', searchRouter);
   app.use('/api/databases', databaseRouter);
+  app.use('/api/ai', aiRouter);
 
   app.use(notFound);
   app.use(errorHandler);

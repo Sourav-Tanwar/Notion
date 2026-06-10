@@ -64,3 +64,36 @@ export const restoreLimiter = rateLimit({
     return userId ?? `ip:${ipKey(req.ip ?? '')}`;
   },
 });
+
+/**
+ * AI generation (Ask AI + /ai block). Keyed per user so one heavy user can't
+ * exhaust everyone's shared Groq free-tier budget. Generous enough for normal
+ * editing, tight enough to blunt abuse.
+ */
+export const aiLimiter = rateLimit({
+  windowMs: 60_000,
+  limit: 30,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message,
+  keyGenerator: (req) => {
+    const userId = (req as unknown as { userId?: string }).userId;
+    return userId ?? `ip:${ipKey(req.ip ?? '')}`;
+  },
+});
+
+/**
+ * Autocomplete fires far more often than explicit commands, so it gets its
+ * own, higher ceiling — still per user to protect the daily quota.
+ */
+export const aiAutocompleteLimiter = rateLimit({
+  windowMs: 60_000,
+  limit: 80,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message,
+  keyGenerator: (req) => {
+    const userId = (req as unknown as { userId?: string }).userId;
+    return userId ?? `ip:${ipKey(req.ip ?? '')}`;
+  },
+});

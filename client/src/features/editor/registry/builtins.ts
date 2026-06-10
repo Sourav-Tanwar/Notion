@@ -13,11 +13,13 @@ import {
 import { CodeRender } from '../blocks/CodeBlock';
 import { ImageRender } from '../blocks/ImageBlock';
 import { DatabaseRender } from '../blocks/DatabaseBlock';
+import { TableRender } from '../blocks/TableBlock';
 import { TocRender } from '../blocks/TocBlock';
 import { VideoRender } from '../blocks/VideoBlock';
 import { FileRender } from '../blocks/FileBlock';
 import { BookmarkRender } from '../blocks/BookmarkBlock';
 import { ColumnsRender, ColumnRender } from '../blocks/ColumnsBlock';
+import { AiRender } from '../blocks/AiBlock';
 
 /**
  * Registers all built-in block types + their markdown shortcuts.
@@ -166,10 +168,28 @@ registerBlock({
 });
 
 registerBlock({
-  type: 'database',
+  type: 'table',
   label: 'Table',
-  hint: 'Database with rows and columns',
+  hint: 'Editable grid of rows and columns',
   icon: '▦',
+  Render: TableRender,
+  inlineMarks: false,
+  hasChildren: false,
+  defaultProps: {
+    header: true,
+    rows: [
+      ['Column 1', 'Column 2', 'Column 3'],
+      ['', '', ''],
+      ['', '', ''],
+    ],
+  },
+});
+
+registerBlock({
+  type: 'database',
+  label: 'Database',
+  hint: 'Database with rows and columns',
+  icon: '🗄',
   Render: DatabaseRender,
   inlineMarks: false,
   hasChildren: false,
@@ -226,6 +246,17 @@ registerBlock({
   hint: 'Side-by-side layout',
   icon: '▐▐',
   Render: ColumnsRender,
+  inlineMarks: false,
+  hasChildren: false,
+  defaultProps: {},
+});
+
+registerBlock({
+  type: 'ai',
+  label: 'Ask AI',
+  hint: 'Generate content with AI',
+  icon: '✨',
+  Render: AiRender,
   inlineMarks: false,
   hasChildren: false,
   defaultProps: {},

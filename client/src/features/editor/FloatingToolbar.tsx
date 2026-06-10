@@ -9,20 +9,37 @@
  */
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { toolbar, isMarkActive, activeColor, selectedText } from './collab/marks';
+import { toolbar, isMarkActive, activeColor, selectedText, getSelectionContext } from './collab/marks';
 import { focusedView } from './collab/focusedView';
 import { useCommentsUiStore } from '@/stores/comments.store';
 import { TEXT_COLORS, HIGHLIGHT_COLORS, type Swatch } from './collab/textStyles';
+import { useAiSettingsStore } from '@/stores/ai.store';
+import { AskAiPopover } from './ai/AskAiPopover';
 
 interface Pos {
   top: number;
   left: number;
 }
 
+interface AiSel {
+  blockId: string;
+  from: number;
+  to: number;
+  text: string;
+}
+
 export function FloatingToolbar(): JSX.Element | null {
   const [pos, setPos] = useState<Pos | null>(null);
   const [colorOpen, setColorOpen] = useState(false);
+  const [aiSel, setAiSel] = useState<AiSel | null>(null);
+  const aiEnabled = useAiSettingsStore((s) => s.enabled);
+  const refreshAiStatus = useAiSettingsStore((s) => s.refreshStatus);
   const ref = useRef<HTMLDivElement>(null);
+  // While the Ask-AI popover is open, the user's text selection can collapse
+  // (clicking buttons, typing in the instruction field). Without this guard the
+  // toolbar — and the popover with it — would unmount on `selectionchange`.
+  const aiOpenRef = useRef(false);
+  aiOpenRef.current = aiSel !== null;
   // `tick` is bumped on every selection / focused-view change so isMarkActive
   // re-reads at render time. Cheap and avoids mirroring PM state into React.
   const [, setTick] = useState(0);
@@ -44,7 +61,12 @@ export function FloatingToolbar(): JSX.Element | null {
   });
 
   useEffect(() => {
+    void refreshAiStatus();
+  }, [refreshAiStatus]);
+
+  useEffect(() => {
     const handle = () => {
+      if (aiOpenRef.current) return; // keep toolbar mounted while Ask-AI is open
       const view = focusedView.get();
       if (!view) {
         setPos(null);
@@ -164,6 +186,22 @@ export function FloatingToolbar(): JSX.Element | null {
       <span className="mx-1 h-4 w-px bg-border" />
       <Btn active={isMarkActive('link')} onClick={onLink} title="Add / remove link">🔗</Btn>
       <Btn active={false} onClick={onComment} title="Comment on selection">💬</Btn>
+      {aiEnabled && (
+        <>
+          <span className="mx-1 h-4 w-px bg-border" />
+          <Btn
+            active={aiSel !== null}
+            onClick={() => {
+              const ctx = getSelectionContext();
+              if (ctx) setAiSel(ctx);
+            }}
+            title="Ask AI"
+          >
+            <span className="text-xs font-medium">✨ AI</span>
+          </Btn>
+          {aiSel && <AskAiPopover selection={aiSel} onClose={() => setAiSel(null)} />}
+        </>
+      )}
     </div>
   );
 }

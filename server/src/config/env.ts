@@ -107,6 +107,24 @@ export const env = {
   trashRetentionDays: Number(process.env.TRASH_RETENTION_DAYS ?? 30),
   // How often the purge sweep runs, in milliseconds. Default 6h.
   trashSweepIntervalMs: Number(process.env.TRASH_SWEEP_INTERVAL_MS ?? 6 * 60 * 60 * 1000),
+
+  /* --- AI (Groq) ---
+   * The Groq API key is the ONLY secret needed for Phase 13. It stays
+   * server-side; the SPA never sees it. AI features auto-disable when the
+   * key is absent so the rest of the app keeps working in environments
+   * without it (CI, contributors without a key, etc.). */
+  groqApiKey: process.env.GROQ_API_KEY ?? '',
+  // Groq's hosted models are free. Llama 3.3 70B is the quality default;
+  // override with a smaller/faster model (e.g. llama-3.1-8b-instant) to
+  // stretch the free quota further.
+  groqModel: process.env.GROQ_MODEL ?? 'llama-3.3-70b-versatile',
+  // A lighter model for autocomplete — it fires often, so favour the fast
+  // 8B model to conserve the daily request budget.
+  groqAutocompleteModel: process.env.GROQ_AUTOCOMPLETE_MODEL ?? 'llama-3.1-8b-instant',
+  groqBaseUrl: process.env.GROQ_BASE_URL ?? 'https://api.groq.com/openai/v1',
 } as const;
+
+/** AI features are live only when a Groq key is configured. */
+export const aiEnabled = Boolean(env.groqApiKey);
 
 export const isProd = env.nodeEnv === 'production';

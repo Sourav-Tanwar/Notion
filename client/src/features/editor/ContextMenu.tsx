@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { allBlockSpecs } from './registry/blockRegistry';
 import { useBlocksStore } from '@/stores/blocks.store';
+import { useSelectionStore } from '@/stores/selection.store';
 import type { BlockType, ID } from '@/types/domain';
 
 export interface ContextMenuPos {
@@ -19,6 +20,7 @@ export function ContextMenu({ blockId, pos, onClose }: Props): JSX.Element {
   const setType = useBlocksStore((s) => s.setType);
   const duplicate = useBlocksStore((s) => s.duplicate);
   const removeBlock = useBlocksStore((s) => s.removeBlock);
+  const removeMany = useBlocksStore((s) => s.removeMany);
   const specs = allBlockSpecs().filter((s) => !s.hidden);
   const [layout, setLayout] = useState<{ top: number; left: number; maxHeight: number } | null>(
     null,
@@ -74,11 +76,23 @@ export function ContextMenu({ blockId, pos, onClose }: Props): JSX.Element {
       <Item
         danger
         onClick={() => {
-          removeBlock(blockId);
+          // If this block is part of a multi-selection, delete the whole set.
+          const selected = useSelectionStore.getState().selected;
+          if (selected.size > 1 && selected.has(blockId)) {
+            removeMany([...selected]);
+            useSelectionStore.getState().clear();
+          } else {
+            removeBlock(blockId);
+          }
           onClose();
         }}
       >
-        Delete
+        {(() => {
+          const selected = useSelectionStore.getState().selected;
+          return selected.size > 1 && selected.has(blockId)
+            ? `Delete ${selected.size} blocks`
+            : 'Delete';
+        })()}
       </Item>
       <Separator />
       <div className="px-3 py-1 text-xs uppercase tracking-wider text-zinc-500">Turn into</div>

@@ -25,7 +25,9 @@ export type BlockType =
   | 'toc'
   | 'columns'
   | 'column'
-  | 'database';
+  | 'database'
+  | 'table'
+  | 'ai';
 
 export interface Block {
   id: ID;

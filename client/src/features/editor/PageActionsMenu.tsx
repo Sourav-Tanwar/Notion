@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ID } from '@/types/domain';
 import { usePagesStore, selectPage } from '@/stores/pages.store';
+import { useAiSettingsStore } from '@/stores/ai.store';
 import { pageToMarkdown } from './export/markdown';
 import { pageToPrintableHtml } from './export/html';
 import { downloadText, slugifyFilename, printHtml } from '@/lib/download';
@@ -17,9 +18,17 @@ export function PageActionsMenu({ pageId }: Props): JSX.Element {
   const page = usePagesStore(selectPage(pageId));
   const saveAsTemplate = usePagesStore((s) => s.saveAsTemplate);
   const setPageSettings = usePagesStore((s) => s.setPageSettings);
+  const aiEnabled = useAiSettingsStore((s) => s.enabled);
+  const autocomplete = useAiSettingsStore((s) => s.autocomplete);
+  const setAutocomplete = useAiSettingsStore((s) => s.setAutocomplete);
+  const refreshAiStatus = useAiSettingsStore((s) => s.refreshStatus);
   const [open, setOpen] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    void refreshAiStatus();
+  }, [refreshAiStatus]);
 
   useEffect(() => {
     if (!open) return;
@@ -115,6 +124,22 @@ export function PageActionsMenu({ pageId }: Props): JSX.Element {
           <button type="button" className={itemCls} onClick={() => void onSaveTemplate()}>
             ⭐ Save as template
           </button>
+          {aiEnabled && (
+            <>
+              <div className="my-1 border-t border-zinc-200 dark:border-zinc-700" />
+              <div className="px-3 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
+                AI
+              </div>
+              <button
+                type="button"
+                className={itemCls}
+                onClick={() => setAutocomplete(!autocomplete)}
+              >
+                <span className="w-4 text-center">{autocomplete ? '☑' : '▭'}</span>
+                Autocomplete (ghost text)
+              </button>
+            </>
+          )}
         </div>
       )}
       {note && (

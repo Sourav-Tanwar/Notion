@@ -149,6 +149,61 @@ export function applyCommentMarkTo(
   return true;
 }
 
+/**
+ * Capture the current selection as a portable context object. Read BEFORE
+ * focus moves to an AI popover, so we can re-target the originating block's
+ * view by id once the user accepts a result.
+ */
+export function getSelectionContext(): {
+  blockId: string;
+  from: number;
+  to: number;
+  text: string;
+} | null {
+  const view = focusedView.get();
+  if (!view) return null;
+  const { from, to, empty } = view.state.selection;
+  if (empty) return null;
+  const blockId = view.dom.closest<HTMLElement>('[data-block-id]')?.getAttribute('data-block-id');
+  if (!blockId) return null;
+  return { blockId, from, to, text: view.state.doc.textBetween(from, to, ' ') };
+}
+
+/**
+ * Replace a range in a specific block's PM doc with plain text. Used by "Ask
+ * AI → Replace": swaps the selected source text for the AI rewrite directly in
+ * the CRDT (newlines collapse to spaces since a paragraph can't hold breaks —
+ * multi-paragraph output should use the insert-below path instead). Inline
+ * Markdown markers are stripped so an emphasised rewrite doesn't leave literal
+ * `**`/`*`/`` ` `` characters behind.
+ */
+export function replaceRangeWithText(
+  blockId: string,
+  from: number,
+  to: number,
+  text: string,
+): boolean {
+  const view = blockViews.get(blockId);
+  if (!view) return false;
+  const size = view.state.doc.content.size;
+  const a = Math.max(0, Math.min(from, size));
+  const b = Math.max(a, Math.min(to, size));
+  const clean = stripInlineMarkdown(text).replace(/\s*\n+\s*/g, ' ').trim();
+  view.dispatch(view.state.tr.insertText(clean, a, b));
+  return true;
+}
+
+/** Remove inline Markdown emphasis markers, keeping the inner text. */
+function stripInlineMarkdown(s: string): string {
+  return s
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/__([^_]+)__/g, '$1')
+    .replace(/\*([^*]+)\*/g, '$1')
+    .replace(/(^|[^_])_([^_]+)_(?!_)/g, '$1$2')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/~~([^~]+)~~/g, '$1');
+}
+
 /** True if `mark` is active across the current selection. */
 export function isMarkActive(markName: keyof typeof schema.marks): boolean {
   const view = focusedView.get();

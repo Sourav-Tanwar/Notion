@@ -96,7 +96,7 @@ export function BulletRender({ block, onKeyDown, registerEditable }: RenderProps
 export function NumberedRender({ block, onKeyDown, registerEditable }: RenderProps): JSX.Element {
   return (
     <div className="flex items-start gap-2">
-      <span className="mt-1 select-none text-zinc-400 tabular-nums">{(block.props.index as number) ?? '1'}.</span>
+      <span className="mt-1 select-none text-zinc-400 tabular-nums">{((block.props.index as number) ?? 0) + 1}.</span>
       <Editable
         id={block.id}
         html={block.text}
