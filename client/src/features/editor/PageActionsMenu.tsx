@@ -4,6 +4,7 @@ import { usePagesStore, selectPage } from '@/stores/pages.store';
 import { useAiSettingsStore } from '@/stores/ai.store';
 import { pageToMarkdown } from './export/markdown';
 import { pageToPrintableHtml } from './export/html';
+import { PageSummaryDialog } from './PageSummaryDialog';
 import { downloadText, slugifyFilename, printHtml } from '@/lib/download';
 
 interface Props {
@@ -24,6 +25,7 @@ export function PageActionsMenu({ pageId }: Props): JSX.Element {
   const refreshAiStatus = useAiSettingsStore((s) => s.refreshStatus);
   const [open, setOpen] = useState(false);
   const [note, setNote] = useState<string | null>(null);
+  const [summaryOpen, setSummaryOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -133,6 +135,17 @@ export function PageActionsMenu({ pageId }: Props): JSX.Element {
               <button
                 type="button"
                 className={itemCls}
+                onClick={() => {
+                  setOpen(false);
+                  setSummaryOpen(true);
+                }}
+              >
+                <span className="w-4 text-center">✨</span>
+                Summarize page
+              </button>
+              <button
+                type="button"
+                className={itemCls}
                 onClick={() => setAutocomplete(!autocomplete)}
               >
                 <span className="w-4 text-center">{autocomplete ? '☑' : '▭'}</span>
@@ -146,6 +159,9 @@ export function PageActionsMenu({ pageId }: Props): JSX.Element {
         <div className="absolute right-0 top-9 z-[90] whitespace-nowrap rounded bg-zinc-900 px-2 py-1 text-[11px] text-white shadow dark:bg-zinc-700">
           {note}
         </div>
+      )}
+      {summaryOpen && (
+        <PageSummaryDialog pageId={pageId} onClose={() => setSummaryOpen(false)} />
       )}
     </div>
   );
