@@ -38,6 +38,7 @@ import { OfflineBanner } from './collab/OfflineBanner';
 import { useLocalAwareness } from './collab/useLocalAwareness';
 import { useBlocksLiveRefresh } from './collab/useBlocksLiveRefresh';
 import { useCommentsLiveRefresh } from './collab/useCommentsLiveRefresh';
+import { useDatabaseLiveRefresh } from './collab/useDatabaseLiveRefresh';
 import { CommentsDrawer } from './comments/CommentsDrawer';
 import { setMentionNavigate } from './collab/mentionNav';
 import {
@@ -70,6 +71,8 @@ function EditorInner({ pageId }: Props): JSX.Element {
   useBlocksLiveRefresh(pageId);
   // Refetch comments when a peer adds / edits / resolves one.
   useCommentsLiveRefresh(pageId);
+  // Refetch inline databases when a peer edits rows/cells/columns.
+  useDatabaseLiveRefresh(pageId);
   const containerRef = useRef<HTMLDivElement>(null);
   const page = usePagesStore(selectPage(pageId));
   const loaded = useBlocksStore(selectIsPageLoaded(pageId));

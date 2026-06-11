@@ -3,6 +3,8 @@ import type { Column, CellValue, SelectOption } from '@/services/database.api';
 import { cn } from '@/lib/cn';
 import { Popover } from './Popover';
 
+const LIVE_SYNC_MS = 220;
+
 /**
  * Per-type cell editors for the table view.
  *
@@ -19,13 +21,49 @@ interface CellProps {
 
 function TextCell({ value, onCommit }: CellProps): JSX.Element {
   const [draft, setDraft] = useState((value as string) ?? '');
+  const lastCommittedRef = useRef((value as string) ?? '');
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const commitNow = (next: string): void => {
+    if (next === lastCommittedRef.current) return;
+    lastCommittedRef.current = next;
+    onCommit(next);
+  };
+
+  const scheduleCommit = (next: string): void => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => commitNow(next), LIVE_SYNC_MS);
+  };
+
+  const flushPending = (): void => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    commitNow(draft);
+  };
+
   useEffect(() => setDraft((value as string) ?? ''), [value]);
+  useEffect(() => {
+    lastCommittedRef.current = (value as string) ?? '';
+  }, [value]);
+  useEffect(
+    () => () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    },
+    [],
+  );
+
   return (
     <input
       className="w-full bg-transparent px-2 py-1 text-sm outline-none"
       value={draft}
-      onChange={(e) => setDraft(e.target.value)}
-      onBlur={() => draft !== (value ?? '') && onCommit(draft)}
+      onChange={(e) => {
+        const next = e.target.value;
+        setDraft(next);
+        scheduleCommit(next);
+      }}
+      onBlur={flushPending}
       onKeyDown={(e) => {
         if (e.key === 'Enter') {
           e.preventDefault();
@@ -39,19 +77,60 @@ function TextCell({ value, onCommit }: CellProps): JSX.Element {
 function NumberCell({ value, onCommit }: CellProps): JSX.Element {
   const [draft, setDraft] = useState(value === null || value === undefined ? '' : String(value));
   useEffect(() => setDraft(value === null || value === undefined ? '' : String(value)), [value]);
-  const commit = (): void => {
-    const trimmed = draft.trim();
+  const lastCommittedRef = useRef(value === null || value === undefined ? '' : String(value));
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const toCellValue = (raw: string): CellValue | undefined => {
+    const trimmed = raw.trim();
     const next = trimmed === '' ? null : Number(trimmed);
-    if (next !== null && Number.isNaN(next)) return;
-    if (next !== value) onCommit(next);
+    if (next !== null && Number.isNaN(next)) return undefined;
+    return next;
   };
+
+  const commit = (raw: string): void => {
+    const next = toCellValue(raw);
+    if (next === undefined) return;
+    const marker = raw.trim() === '' ? '' : String(next);
+    if (marker === lastCommittedRef.current) return;
+    lastCommittedRef.current = marker;
+    onCommit(next);
+  };
+
+  const scheduleCommit = (raw: string): void => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => commit(raw), LIVE_SYNC_MS);
+  };
+
+  const flushPending = (): void => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    commit(draft);
+  };
+
+  useEffect(() => {
+    lastCommittedRef.current = value === null || value === undefined ? '' : String(value);
+  }, [value]);
+  useEffect(
+    () => () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    },
+    [],
+  );
   return (
     <input
       inputMode="decimal"
       className="w-full bg-transparent px-2 py-1 text-right text-sm tabular-nums outline-none"
       value={draft}
-      onChange={(e) => setDraft(e.target.value)}
-      onBlur={commit}
+      onChange={(e) => {
+        const next = e.target.value;
+        setDraft(next);
+        scheduleCommit(next);
+      }}
+      onBlur={() => {
+        flushPending();
+      }}
       onKeyDown={(e) => {
         if (e.key === 'Enter') {
           e.preventDefault();
@@ -103,7 +182,40 @@ function LinkCell({ column, value, onCommit }: CellProps): JSX.Element {
   const kind = column.type as 'url' | 'email' | 'phone';
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState((value as string) ?? '');
+  const lastCommittedRef = useRef((value as string) ?? '');
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const commitNow = (raw: string): void => {
+    const next = raw;
+    if (next === lastCommittedRef.current) return;
+    lastCommittedRef.current = next;
+    onCommit(next || null);
+  };
+
+  const scheduleCommit = (raw: string): void => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => commitNow(raw), LIVE_SYNC_MS);
+  };
+
+  const flushPending = (): void => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    // Keep the existing trim-on-finish behavior for final persisted value.
+    commitNow(draft.trim());
+  };
+
   useEffect(() => setDraft((value as string) ?? ''), [value]);
+  useEffect(() => {
+    lastCommittedRef.current = (value as string) ?? '';
+  }, [value]);
+  useEffect(
+    () => () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    },
+    [],
+  );
 
   const str = (value as string) ?? '';
 
@@ -140,10 +252,14 @@ function LinkCell({ column, value, onCommit }: CellProps): JSX.Element {
       placeholder={kind === 'email' ? 'name@example.com' : kind === 'phone' ? '+1 555 0100' : 'https://…'}
       className="w-full bg-transparent px-2 py-1 text-sm outline-none placeholder:text-neutral-400"
       value={draft}
-      onChange={(e) => setDraft(e.target.value)}
+      onChange={(e) => {
+        const next = e.target.value;
+        setDraft(next);
+        scheduleCommit(next);
+      }}
       onBlur={() => {
         setEditing(false);
-        if (draft.trim() !== (value ?? '')) onCommit(draft.trim() || null);
+        flushPending();
       }}
       onKeyDown={(e) => {
         if (e.key === 'Enter') {

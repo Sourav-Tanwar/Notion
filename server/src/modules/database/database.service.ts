@@ -7,6 +7,7 @@ import {
   type ColumnType,
 } from './database.model';
 import { HttpError } from '../../utils/HttpError';
+import { notifyDatabaseChanged } from '../../realtime/notify';
 
 const SELECT_COLORS = ['gray', 'blue', 'green', 'yellow', 'orange', 'red', 'purple', 'pink'];
 
@@ -55,6 +56,7 @@ export const databaseService = {
         order: i,
       })),
     );
+    notifyDatabaseChanged(pageId);
     return { database: dbDTO(db), rows: rows.map(rowDTO) };
   },
 
@@ -70,6 +72,7 @@ export const databaseService = {
     const db = await loadDb(workspaceId, id);
     db.title = title;
     await db.save();
+    notifyDatabaseChanged(String(db.pageId));
     return dbDTO(db);
   },
 
@@ -84,6 +87,7 @@ export const databaseService = {
     };
     db.columns.push(col as any);
     await db.save();
+    notifyDatabaseChanged(String(db.pageId));
     return dbDTO(db);
   },
 
@@ -103,6 +107,7 @@ export const databaseService = {
       if (patch.type === 'select' && !col.options) col.options = [] as any;
     }
     await db.save();
+    notifyDatabaseChanged(String(db.pageId));
     return dbDTO(db);
   },
 
@@ -115,6 +120,7 @@ export const databaseService = {
       { databaseId: db._id, workspaceId },
       { $unset: { [`cells.${colId}`]: '' } },
     );
+    notifyDatabaseChanged(String(db.pageId));
     return dbDTO(db);
   },
 
@@ -132,6 +138,7 @@ export const databaseService = {
     };
     options.push(option as any);
     await db.save();
+    notifyDatabaseChanged(String(db.pageId));
     return dbDTO(db);
   },
 
@@ -147,6 +154,7 @@ export const databaseService = {
       cells: {},
       order: (last?.order ?? -1) + 1,
     });
+    notifyDatabaseChanged(String(db.pageId));
     return rowDTO(row);
   },
 
@@ -162,12 +170,14 @@ export const databaseService = {
     row.cells = { ...(row.cells as Record<string, unknown>), ...cells };
     row.markModified('cells');
     await row.save();
+    notifyDatabaseChanged(String(db.pageId));
     return rowDTO(row);
   },
 
   async deleteRow(workspaceId: string, id: string, rowId: string) {
     const db = await loadDb(workspaceId, id);
     await DatabaseRowModel.deleteOne({ _id: rowId, databaseId: db._id, workspaceId });
+    notifyDatabaseChanged(String(db.pageId));
     return { ok: true as const };
   },
 };

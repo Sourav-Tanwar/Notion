@@ -28,6 +28,29 @@ const DEBOUNCE_MS = 600;
 const MIN_CONTEXT = 3;
 const MAX_CONTEXT = 1_000;
 
+/**
+ * Normalize model output so accepting ghost text doesn't glue words together.
+ *
+ * We always strip leading whitespace from the model response (it is noisy and
+ * inconsistent across providers). If the current context ends in a word-char
+ * and the suggestion starts with a word-char, we reinsert exactly one space.
+ */
+function normalizeSuggestion(context: string, suggestion: string): string {
+  let text = suggestion.replace(/^\s+/, '');
+  if (!text.trim()) return '';
+
+  const prev = context.slice(-1);
+  const next = text.charAt(0);
+  const contextEndsWithSpace = /\s/.test(prev);
+  const prevIsWord = /[A-Za-z0-9]/.test(prev);
+  const nextIsWord = /[A-Za-z0-9]/.test(next);
+
+  if (!contextEndsWithSpace && prevIsWord && nextIsWord) {
+    text = ` ${text}`;
+  }
+  return text;
+}
+
 function ghostWidget(text: string): HTMLElement {
   const span = document.createElement('span');
   span.textContent = text;
@@ -116,9 +139,7 @@ export function autocompletePlugin(): Plugin<GhostState | null> {
             void fetchAiComplete(context, ctrl.signal)
               .then((suggestion) => {
                 if (ctrl.signal.aborted) return;
-                const trimmed = suggestion.replace(/^\s+/, (m) =>
-                  context.endsWith(' ') ? '' : m ? ' ' : '',
-                );
+                const trimmed = normalizeSuggestion(context, suggestion);
                 // Bail if the caret moved while we were waiting.
                 const now = caretAtBlockEnd(view);
                 if (!now.ok || now.head !== head || !trimmed.trim()) return;

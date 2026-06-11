@@ -107,7 +107,15 @@ function ColumnMenu({
   );
 }
 
-export function TableView({ databaseId, rows }: { databaseId: string; rows: DatabaseRow[] }): JSX.Element | null {
+export function TableView({
+  blockId,
+  databaseId,
+  rows,
+}: {
+  blockId: string;
+  databaseId: string;
+  rows: DatabaseRow[];
+}): JSX.Element | null {
   const entry = useDatabaseStore((s) => s.byId[databaseId]);
   const addColumn = useDatabaseStore((s) => s.addColumn);
   const addOption = useDatabaseStore((s) => s.addOption);
@@ -185,6 +193,7 @@ export function TableView({ databaseId, rows }: { databaseId: string; rows: Data
                 {database.columns.map((col, i) => (
                   <td
                     key={col.id}
+                    data-caret-id={`${blockId}:${row.id}:${col.id}`}
                     className={cn(
                       'align-top',
                       i > 0 && 'border-l border-black/[0.06] dark:border-white/[0.07]',

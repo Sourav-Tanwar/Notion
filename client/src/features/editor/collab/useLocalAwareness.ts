@@ -54,17 +54,32 @@ export function useLocalAwareness(pageId: string): void {
       if (!id) return;
       const sel = window.getSelection();
       const next: AwarenessState = { user: id, lastActiveAt: Date.now() };
+      const active = document.activeElement as HTMLElement | null;
 
       if (sel && sel.rangeCount > 0) {
         const range = sel.getRangeAt(0);
-        const host = findBlockHost(range.startContainer);
+        const host = findCaretHost(range.startContainer);
         if (host) {
-          const blockId = host.dataset.blockId!;
+          const blockId = host.dataset.caretId ?? host.dataset.blockId!;
           next.caret = {
             blockId,
             anchor: offsetWithin(host, sel.anchorNode, sel.anchorOffset),
             head: offsetWithin(host, sel.focusNode, sel.focusOffset),
           };
+        }
+      } else if (active) {
+        // Inputs/Textareas keep selection internally; window.getSelection() may
+        // be empty. Anchor to the nearest collab host so peers still see the
+        // correct cell while the user moves the caret.
+        const host = findCaretHost(active);
+        if (host) {
+          const blockId = host.dataset.caretId ?? host.dataset.blockId!;
+          const input =
+            active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement
+              ? active
+              : null;
+          const caret = input ? Math.max(0, input.selectionStart ?? 0) : 0;
+          next.caret = { blockId, anchor: caret, head: caret };
         }
       }
       awareness.setLocalState(next);
@@ -85,6 +100,10 @@ export function useLocalAwareness(pageId: string): void {
     };
 
     document.addEventListener('selectionchange', onChange);
+    // Some browsers/editable states coalesce selectionchange oddly while using
+    // arrow keys; keyup/mouseup ensures caret-only movement still broadcasts.
+    document.addEventListener('keyup', onChange, true);
+    document.addEventListener('mouseup', onChange, true);
     // Also push a final null-caret state when the tab loses focus so peers
     // don't see a stale cursor of someone who alt-tabbed away.
     const onBlur = () => {
@@ -96,6 +115,8 @@ export function useLocalAwareness(pageId: string): void {
 
     return () => {
       document.removeEventListener('selectionchange', onChange);
+      document.removeEventListener('keyup', onChange, true);
+      document.removeEventListener('mouseup', onChange, true);
       window.removeEventListener('blur', onBlur);
       // Clear our state so peers immediately drop our avatar.
       awareness.setLocalState(null);
@@ -103,13 +124,13 @@ export function useLocalAwareness(pageId: string): void {
   }, [awareness, user, pageId]);
 }
 
-/** Walk up from a DOM node until we hit the editable surface tagged with
- *  `data-block-id`. Returns null if we never find one. */
-function findBlockHost(node: Node | null): HTMLElement | null {
+/** Walk up from a DOM node until we hit a collab host. We prefer fine-grained
+ *  `data-caret-id` anchors (database cells), then fall back to `data-block-id`. */
+function findCaretHost(node: Node | null): HTMLElement | null {
   let el: HTMLElement | null =
     node instanceof HTMLElement ? node : node?.parentElement ?? null;
-  while (el && !el.dataset?.blockId) el = el.parentElement;
-  return el && el.dataset.blockId ? el : null;
+  while (el && !el.dataset?.caretId && !el.dataset?.blockId) el = el.parentElement;
+  return el && (el.dataset.caretId || el.dataset.blockId) ? el : null;
 }
 
 /**
@@ -120,13 +141,22 @@ function findBlockHost(node: Node | null): HTMLElement | null {
 function offsetWithin(host: HTMLElement, node: Node | null, nodeOffset: number): number {
   if (!node) return 0;
   if (!host.contains(node)) return 0;
-  const walker = document.createTreeWalker(host, NodeFilter.SHOW_TEXT);
-  let acc = 0;
-  let cur: Node | null = walker.nextNode();
-  while (cur) {
-    if (cur === node) return acc + nodeOffset;
-    acc += (cur.nodeValue ?? '').length;
-    cur = walker.nextNode();
+  // Anchor/focus can point at either a text node or an element+child index.
+  // A DOM Range gives us a consistent linear text offset for both cases.
+  const r = document.createRange();
+  try {
+    r.setStart(host, 0);
+    r.setEnd(node, nodeOffset);
+    return r.toString().length;
+  } catch {
+    const walker = document.createTreeWalker(host, NodeFilter.SHOW_TEXT);
+    let acc = 0;
+    let cur: Node | null = walker.nextNode();
+    while (cur) {
+      if (cur === node) return acc + nodeOffset;
+      acc += (cur.nodeValue ?? '').length;
+      cur = walker.nextNode();
+    }
+    return acc;
   }
-  return acc;
 }

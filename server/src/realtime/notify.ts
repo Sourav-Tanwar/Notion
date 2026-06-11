@@ -93,6 +93,21 @@ export function notifyCommentsChanged(pageId: string): void {
   });
 }
 
+/**
+ * Tell connected clients that inline-database data changed on this page
+ * (cell edit / row add-delete / column schema change). Bumps `rev.database`
+ * so the client can refetch database entities without a full page reload.
+ */
+export function notifyDatabaseChanged(pageId: string): void {
+  void doNotifyRev(pageId, 'database').catch((err) => {
+    // eslint-disable-next-line no-console
+    console.warn('[notify] database-changed failed (non-fatal)', {
+      pageId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  });
+}
+
 async function doNotifyRev(pageId: string, key: string): Promise<void> {
   const url = `${env.realtimeInternalUrl}/__internal__/notify-blocks`;
   const ctrl = new AbortController();

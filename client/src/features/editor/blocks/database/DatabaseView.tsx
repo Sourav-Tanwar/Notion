@@ -56,7 +56,9 @@ export function DatabaseView({ block, databaseId }: { block: Block; databaseId: 
       {config.mode === 'calendar' && (
         <CalendarView databaseId={databaseId} rows={display} dateCol={dateCol} />
       )}
-      {config.mode === 'table' && <TableView databaseId={databaseId} rows={display} />}
+      {config.mode === 'table' && (
+        <TableView blockId={block.id} databaseId={databaseId} rows={display} />
+      )}
     </div>
   );
 }

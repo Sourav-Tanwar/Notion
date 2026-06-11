@@ -54,9 +54,9 @@ export function RemoteCarets({ containerRef }: Props): JSX.Element | null {
     const next: CaretBox[] = [];
     for (const { clientId, state } of remote) {
       if (!state.caret) continue;
-      const host = container.querySelector<HTMLElement>(
-        `[data-block-id="${cssEscape(state.caret.blockId)}"]`,
-      );
+      const host =
+        container.querySelector<HTMLElement>(`[data-caret-id="${cssEscape(state.caret.blockId)}"]`) ??
+        container.querySelector<HTMLElement>(`[data-block-id="${cssEscape(state.caret.blockId)}"]`);
       if (!host) continue;
       const range = rangeFromOffsets(host, state.caret.anchor, state.caret.head);
       if (!range) continue;
@@ -68,7 +68,17 @@ export function RemoteCarets({ containerRef }: Props): JSX.Element | null {
         caretRange.setEnd(headPos.node, headPos.offset);
       }
       const caretRects = caretRange.getClientRects();
-      const caretRect = caretRects.length > 0 ? caretRects[0] : null;
+      let caretRect: DOMRect | null = caretRects.length > 0 ? caretRects[0] : null;
+      if (!caretRect) {
+        const b = caretRange.getBoundingClientRect();
+        if (b.width > 0 || b.height > 0) caretRect = b;
+      }
+      if (!caretRect) {
+        // Last-resort fallback for edge positions (e.g., trailing empty lines)
+        // where collapsed ranges may report no client rect.
+        const h = host.getBoundingClientRect();
+        caretRect = new DOMRect(h.left, h.top, 2, Math.max(16, h.height || 16));
+      }
 
       next.push({
         clientId,
