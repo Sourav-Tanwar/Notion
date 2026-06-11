@@ -34,8 +34,22 @@ export function TableRender({ block }: RenderProps): JSX.Element {
   const rows = readRows(block.props.rows);
   const header = block.props.header !== false;
   const cols = rows[0]?.length ?? 0;
+  const wrapRef = useRef<HTMLDivElement>(null);
 
   const commit = (next: string[][]): void => setProp(block.id, 'rows', next);
+
+  /** Move focus + caret to the editable surface of cell (r, c), if it exists. */
+  const focusCell = (r: number, c: number): void => {
+    const el = wrapRef.current?.querySelector<HTMLElement>(`[data-cell="${r}-${c}"]`);
+    if (!el) return;
+    el.focus();
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    range.collapse(false); // caret at end
+    const sel = window.getSelection();
+    sel?.removeAllRanges();
+    sel?.addRange(range);
+  };
 
   const setCell = (r: number, c: number, val: string): void => {
     if (rows[r]?.[c] === val) return;
@@ -53,7 +67,7 @@ export function TableRender({ block }: RenderProps): JSX.Element {
   };
 
   return (
-    <div className="group/table my-2 w-full overflow-x-auto" contentEditable={false}>
+    <div ref={wrapRef} className="group/table my-2 w-full overflow-x-auto" contentEditable={false}>
       <table className="border-collapse text-sm">
         <tbody>
           {/* Column controls: a thin row of delete buttons, visible on hover. */}
@@ -78,9 +92,14 @@ export function TableRender({ block }: RenderProps): JSX.Element {
               {row.map((cell, c) => (
                 <Cell
                   key={c}
+                  r={r}
+                  c={c}
+                  rowCount={rows.length}
+                  colCount={cols}
                   value={cell}
                   isHeader={header && r === 0}
                   onCommit={(val) => setCell(r, c, val)}
+                  focusCell={focusCell}
                 />
               ))}
               {/* Row delete handle, visible on row hover. */}
@@ -120,12 +139,26 @@ export function TableRender({ block }: RenderProps): JSX.Element {
 }
 
 interface CellProps {
+  r: number;
+  c: number;
+  rowCount: number;
+  colCount: number;
   value: string;
   isHeader: boolean;
   onCommit: (value: string) => void;
+  focusCell: (r: number, c: number) => void;
 }
 
-function Cell({ value, isHeader, onCommit }: CellProps): JSX.Element {
+function Cell({
+  r,
+  c,
+  rowCount,
+  colCount,
+  value,
+  isHeader,
+  onCommit,
+  focusCell,
+}: CellProps): JSX.Element {
   const ref = useRef<HTMLDivElement>(null);
 
   // Keep the DOM in sync with external changes (AI fill, undo/redo) without
@@ -146,6 +179,7 @@ function Cell({ value, isHeader, onCommit }: CellProps): JSX.Element {
     >
       <div
         ref={ref}
+        data-cell={`${r}-${c}`}
         role="textbox"
         contentEditable
         suppressContentEditableWarning
@@ -154,9 +188,21 @@ function Cell({ value, isHeader, onCommit }: CellProps): JSX.Element {
           // Don't let block-level handlers (Enter→new block, Backspace→delete
           // block, Tab→indent) fire while editing a cell.
           e.stopPropagation();
+          // Tab / Shift+Tab: walk cells left-to-right, wrapping across rows.
+          if (e.key === 'Tab') {
+            e.preventDefault();
+            const flat = r * colCount + c;
+            const next = e.shiftKey ? flat - 1 : flat + 1;
+            if (next >= 0 && next < rowCount * colCount) {
+              focusCell(Math.floor(next / colCount), next % colCount);
+            }
+            return;
+          }
+          // Enter: move down a row, or commit + leave the table on the last row.
           if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
-            (e.currentTarget as HTMLDivElement).blur();
+            if (r + 1 < rowCount) focusCell(r + 1, c);
+            else (e.currentTarget as HTMLDivElement).blur();
           }
         }}
         onBlur={(e) => onCommit((e.currentTarget.textContent ?? '').trim())}

@@ -41,22 +41,30 @@ export function PublicBlockRenderer({ blocks }: Props): JSX.Element {
   const tree = useMemo(() => buildTree(blocks), [blocks]);
   return (
     <div className="space-y-1.5 text-[15px] leading-7 text-zinc-800 dark:text-zinc-200">
-      {tree.map((n) => (
-        <RenderNode key={n.block.id} node={n} />
-      ))}
+      {renderSiblings(tree)}
     </div>
   );
 }
 
-function RenderNode({ node }: { node: Node }): JSX.Element {
+/**
+ * Render a run of sibling nodes, assigning each `numbered` block its 1-based
+ * position. The counter resets whenever a non-numbered block interrupts the
+ * run, so separate lists restart at 1 — matching the editor's behaviour.
+ */
+function renderSiblings(nodes: Node[]): JSX.Element[] {
+  let counter = 0;
+  return nodes.map((n) => {
+    if (n.block.type === 'numbered') counter += 1;
+    else counter = 0;
+    return <RenderNode key={n.block.id} node={n} index={counter} />;
+  });
+}
+
+function RenderNode({ node, index }: { node: Node; index?: number }): JSX.Element {
   const { block, children } = node;
   const html = { __html: block.text };
   const kids = children.length > 0 && (
-    <div className="ml-5 space-y-1.5">
-      {children.map((c) => (
-        <RenderNode key={c.block.id} node={c} />
-      ))}
-    </div>
+    <div className="ml-5 space-y-1.5">{renderSiblings(children)}</div>
   );
 
   switch (block.type) {
@@ -114,7 +122,7 @@ function RenderNode({ node }: { node: Node }): JSX.Element {
       return (
         <>
           <div className="flex gap-2">
-            <span aria-hidden>{(block.props.index as number | undefined) ?? '•'}.</span>
+            <span aria-hidden>{index ?? 1}.</span>
             <div className="flex-1" dangerouslySetInnerHTML={html} />
           </div>
           {kids}
@@ -143,7 +151,7 @@ function RenderNode({ node }: { node: Node }): JSX.Element {
               className="cursor-pointer list-none"
               dangerouslySetInnerHTML={html}
             />
-            <div className="ml-5 mt-1 space-y-1.5">{children.map((c) => <RenderNode key={c.block.id} node={c} />)}</div>
+            <div className="ml-5 mt-1 space-y-1.5">{renderSiblings(children)}</div>
           </details>
         </>
       );
