@@ -285,7 +285,9 @@ export const commentsService = {
     if (!isAuthor && !levelAtLeast(level, 'full')) throw new HttpError(403, 'Forbidden');
     if (!comment.deletedAt) {
       comment.deletedAt = new Date();
-      comment.body = '';
+      // `body` is required by schema; keep a placeholder in storage while the
+      // DTO still exposes deleted comments as empty text to clients.
+      comment.body = '[deleted]';
       await comment.save();
       notifyCommentsChanged(String(comment.pageId));
     }
