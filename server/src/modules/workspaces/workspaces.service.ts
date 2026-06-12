@@ -25,7 +25,7 @@ const memberDTO = (m: any) => ({
   user: m.user
     ? {
         id: String(m.user._id),
-        email: m.user.email,
+        email: m.user.email ?? '',
         name: m.user.name ?? '',
         avatarUrl: m.user.avatarUrl ?? null,
       }
@@ -146,9 +146,17 @@ export const workspacesService = {
   async listMembers(workspaceId: string) {
     const members = await MembershipModel.find({ workspaceId })
       .populate({ path: 'userId', select: 'email name avatarUrl' })
-      .sort({ role: 1, joinedAt: 1 })
-      .lean();
-    return members.map((m) => memberDTO({ ...m, user: m.userId }));
+      .sort({ role: 1, joinedAt: 1 });
+    // Convert to plain objects and explicitly preserve userId as string.
+    return members.map((m) => {
+      const obj = m.toObject() as any;
+      const userIdStr = String((obj.userId as any)?._id ?? obj.userId);
+      return memberDTO({
+        ...obj,
+        userId: userIdStr,  // Override with the original string ID
+        user: obj.userId,   // The populated user object
+      });
+    });
   },
 
   async updateMemberRole(
@@ -169,9 +177,17 @@ export const workspacesService = {
       const owners = await MembershipModel.countDocuments({ workspaceId, role: 'owner' });
       if (owners <= 1) throw new HttpError(400, 'LastOwner');
     }
+    // Capture userId as string before populate changes it to an object.
+    const userIdStr = String(target.userId);
     target.role = nextRole;
     await target.save();
-    return memberDTO(target);
+    await target.populate({ path: 'userId', select: 'email name avatarUrl' });
+    const obj = target.toObject();
+    return memberDTO({
+      ...obj,
+      userId: userIdStr,  // Override with the original string ID
+      user: obj.userId,   // The populated user object
+    });
   },
 
   async removeMember(
