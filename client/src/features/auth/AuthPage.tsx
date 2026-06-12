@@ -66,7 +66,16 @@ export function AuthPage({ mode }: Props): JSX.Element {
   const isLogin = mode === 'login';
 
   return (
-    <div className="flex h-full items-center justify-center px-4">
+    <div className="flex h-full flex-col items-center justify-center px-4">
+      <Link
+        to="/"
+        className="mb-6 flex items-center gap-2 font-semibold tracking-tight text-primary transition hover:opacity-80"
+      >
+        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent text-base font-bold text-white shadow-sm">
+          N
+        </span>
+        <span className="text-lg">Notes</span>
+      </Link>
       <div className="w-full max-w-sm space-y-4 rounded-lg border border-border bg-surface p-6">
         <h1 className="text-xl font-semibold">{isLogin ? 'Welcome back' : 'Create your account'}</h1>
 
@@ -131,6 +140,9 @@ export function AuthPage({ mode }: Props): JSX.Element {
           </form>
         )}
       </div>
+      <Link to="/" className="mt-5 text-xs text-muted transition hover:text-primary">
+        ← Back to home
+      </Link>
     </div>
   );
 }
