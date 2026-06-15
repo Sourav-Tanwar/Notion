@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { setThemePref } from '@/theme/manager';
 import { useResolvedTheme } from '@/theme/useTheme';
@@ -16,6 +17,8 @@ export function LandingPage(): JSX.Element {
       <main>
         <Hero />
         <LogosStrip />
+        <SocialProof />
+        <InteractiveDemo />
         <Features />
         <BlockShowcase />
         <Collaboration />
@@ -27,18 +30,64 @@ export function LandingPage(): JSX.Element {
 }
 
 /* ------------------------------------------------------------------ */
+/* Scroll-spy                                                          */
+/* ------------------------------------------------------------------ */
+
+const NAV_SECTIONS = ['proof', 'demo', 'features', 'blocks', 'collaborate'] as const;
+type SectionId = (typeof NAV_SECTIONS)[number];
+
+function useActiveSection(): SectionId | null {
+  const [active, setActive] = useState<SectionId | null>(null);
+
+  useEffect(() => {
+    const observers: IntersectionObserver[] = [];
+
+    NAV_SECTIONS.forEach((id) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const obs = new IntersectionObserver(
+        ([entry]) => {
+          if (entry.isIntersecting) setActive(id);
+        },
+        // Trigger when the top of the section crosses 20% from the top of the viewport.
+        { rootMargin: '-20% 0px -70% 0px', threshold: 0 },
+      );
+      obs.observe(el);
+      observers.push(obs);
+    });
+
+    return () => observers.forEach((o) => o.disconnect());
+  }, []);
+
+  return active;
+}
+
+/* ------------------------------------------------------------------ */
 /* Header                                                              */
 /* ------------------------------------------------------------------ */
 
 function Header(): JSX.Element {
+  const active = useActiveSection();
+
   return (
     <header className="sticky top-0 z-30 border-b border-border/70 bg-canvas/80 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
         <Brand />
-        <nav className="hidden items-center gap-7 text-sm text-secondary md:flex">
-          <a href="#features" className="transition hover:text-primary">Features</a>
-          <a href="#blocks" className="transition hover:text-primary">Blocks</a>
-          <a href="#collaborate" className="transition hover:text-primary">Collaborate</a>
+        <nav className="hidden items-center gap-7 text-sm md:flex">
+          {NAV_SECTIONS.map((id) => (
+            <a
+              key={id}
+              href={`#${id}`}
+              className={[
+                'relative capitalize transition',
+                active === id
+                  ? 'font-medium text-primary after:absolute after:-bottom-0.5 after:left-0 after:h-0.5 after:w-full after:rounded-full after:bg-accent'
+                  : 'text-secondary hover:text-primary',
+              ].join(' ')}
+            >
+              {id === 'proof' ? 'Proof' : id === 'demo' ? 'Demo' : id.charAt(0).toUpperCase() + id.slice(1)}
+            </a>
+          ))}
         </nav>
         <div className="flex items-center gap-2">
           <ThemeToggle />
@@ -207,6 +256,222 @@ function LogosStrip(): JSX.Element {
         ))}
       </div>
     </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Social proof                                                        */
+/* ------------------------------------------------------------------ */
+
+interface Testimonial {
+  quote: string;
+  name: string;
+  role: string;
+}
+
+const TESTIMONIALS: Testimonial[] = [
+  {
+    quote: 'We moved product specs, sprint notes, and release checklists here. Planning meetings are finally calm.',
+    name: 'Maya Kapoor',
+    role: 'PM, Indie SaaS team',
+  },
+  {
+    quote: 'The slash-command flow is fast enough that I write docs in Notes instead of opening a separate editor.',
+    name: 'Jordan Lee',
+    role: 'Engineering Lead',
+  },
+  {
+    quote: 'Shared pages with granular roles made client collaboration clean. No more duplicate copies in drives.',
+    name: 'Aarav Mehta',
+    role: 'Freelance Product Designer',
+  },
+];
+
+function SocialProof(): JSX.Element {
+  const useCases = [
+    'Startup wiki and sprint planning',
+    'Course notes with rich media',
+    'Client portals and shared docs',
+  ];
+
+  return (
+    <section id="proof" className="mx-auto max-w-6xl px-4 py-24 sm:px-6">
+      <div className="mx-auto max-w-2xl text-center">
+        <span className="text-sm font-semibold uppercase tracking-wide text-accent">Trusted workflows</span>
+        <h2 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">Built for real work, not just pretty pages</h2>
+        <p className="mt-4 text-lg text-secondary">
+          Teams, students, and creators use Notes to centralize knowledge and ship faster.
+        </p>
+      </div>
+
+      <div className="mt-12 grid gap-5 md:grid-cols-3">
+        {TESTIMONIALS.map((t) => (
+          <article key={t.name} className="rounded-xl border border-border bg-surface p-6 shadow-sm">
+            <p className="text-sm leading-relaxed text-secondary">“{t.quote}”</p>
+            <p className="mt-5 text-sm font-semibold text-primary">{t.name}</p>
+            <p className="text-xs text-muted">{t.role}</p>
+          </article>
+        ))}
+      </div>
+
+      <div className="mt-8 rounded-xl border border-border bg-canvas p-5">
+        <p className="text-sm font-semibold text-primary">Popular use cases</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {useCases.map((u) => (
+            <span key={u} className="rounded-md border border-border bg-surface px-3 py-1.5 text-xs text-secondary">
+              {u}
+            </span>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Interactive demo                                                    */
+/* ------------------------------------------------------------------ */
+
+type DemoMode = 'doc' | 'table' | 'ai';
+
+function InteractiveDemo(): JSX.Element {
+  const [mode, setMode] = useState<DemoMode>('doc');
+
+  return (
+    <section id="demo" className="border-y border-border bg-surface/40">
+      <div className="mx-auto max-w-6xl px-4 py-24 sm:px-6">
+        <div className="mx-auto max-w-2xl text-center">
+          <span className="text-sm font-semibold uppercase tracking-wide text-accent">Live preview</span>
+          <h2 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">Try the editor experience</h2>
+          <p className="mt-4 text-lg text-secondary">
+            Switch between document, table, and AI views to preview what building in Notes feels like.
+          </p>
+        </div>
+
+        <div className="mt-10 rounded-2xl border border-border bg-surface p-4 shadow-xl sm:p-6">
+          <div className="mb-5 flex flex-wrap gap-2">
+            <DemoTab active={mode === 'doc'} onClick={() => setMode('doc')}>Document</DemoTab>
+            <DemoTab active={mode === 'table'} onClick={() => setMode('table')}>Table</DemoTab>
+            <DemoTab active={mode === 'ai'} onClick={() => setMode('ai')}>AI Assist</DemoTab>
+          </div>
+
+          <div className="rounded-xl border border-border bg-canvas p-4 sm:p-5">
+            {mode === 'doc' && <DemoDoc />}
+            {mode === 'table' && <DemoTable />}
+            {mode === 'ai' && <DemoAi />}
+          </div>
+
+          <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-secondary">Want the full experience? Create your workspace in under a minute.</p>
+            <Link
+              to="/signup"
+              className="inline-flex items-center justify-center rounded-md bg-accent px-4 py-2 text-sm font-medium text-white transition hover:bg-accent-hover"
+            >
+              Start building
+            </Link>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function DemoTab(
+  { active, onClick, children }: { active: boolean; onClick: () => void; children: string },
+): JSX.Element {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={[
+        'rounded-md border px-3 py-1.5 text-sm font-medium transition',
+        active
+          ? 'border-accent bg-accent text-white'
+          : 'border-border bg-surface text-secondary hover:border-accent/50 hover:text-primary',
+      ].join(' ')}
+    >
+      {children}
+    </button>
+  );
+}
+
+function DemoDoc(): JSX.Element {
+  return (
+    <div className="space-y-3">
+      <h3 className="text-xl font-semibold text-primary">Launch Checklist</h3>
+      <p className="text-sm text-secondary">Everything needed before public release.</p>
+      <div className="flex items-start gap-2 text-sm text-secondary">
+        <input type="checkbox" defaultChecked readOnly className="mt-1 accent-accent" />
+        <span>Finalize workspace permissions</span>
+      </div>
+      <div className="flex items-start gap-2 text-sm text-secondary">
+        <input type="checkbox" defaultChecked readOnly className="mt-1 accent-accent" />
+        <span>Publish onboarding docs</span>
+      </div>
+      <div className="flex items-start gap-2 text-sm text-secondary">
+        <input type="checkbox" readOnly className="mt-1 accent-accent" />
+        <span>Record 2-minute product walkthrough</span>
+      </div>
+      <div className="rounded-md border-l-2 border-accent bg-accent-muted px-3 py-2 text-sm text-primary">
+        Tip: type “/table” to add structured tracking instantly.
+      </div>
+    </div>
+  );
+}
+
+function DemoTable(): JSX.Element {
+  const rows = [
+    { task: 'Design handoff', owner: 'Maya', status: 'Done' },
+    { task: 'API hardening', owner: 'Aarav', status: 'In review' },
+    { task: 'Landing QA', owner: 'Jordan', status: 'In progress' },
+  ];
+
+  return (
+    <div>
+      <h3 className="text-xl font-semibold text-primary">Sprint Board</h3>
+      <div className="mt-4 overflow-hidden rounded-lg border border-border">
+        <table className="w-full text-left text-sm">
+          <thead className="bg-surface text-secondary">
+            <tr>
+              <th className="px-3 py-2 font-medium">Task</th>
+              <th className="px-3 py-2 font-medium">Owner</th>
+              <th className="px-3 py-2 font-medium">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.task} className="border-t border-border">
+                <td className="px-3 py-2 text-primary">{r.task}</td>
+                <td className="px-3 py-2 text-secondary">{r.owner}</td>
+                <td className="px-3 py-2">
+                  <span className="rounded bg-accent-muted px-2 py-1 text-xs font-medium text-accent">{r.status}</span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function DemoAi(): JSX.Element {
+  return (
+    <div className="space-y-4">
+      <h3 className="text-xl font-semibold text-primary">AI Writing Assistant</h3>
+      <div className="rounded-lg border border-border bg-surface p-3 text-sm text-secondary">
+        <p className="font-medium text-primary">Prompt</p>
+        <p className="mt-1">Summarize this week’s sprint update in 3 concise bullets for stakeholders.</p>
+      </div>
+      <div className="rounded-lg border border-accent/40 bg-accent-muted p-3 text-sm text-primary">
+        <p className="font-medium">Result</p>
+        <ul className="mt-2 space-y-1 text-secondary">
+          <li>• Core editor performance improved by reducing block render overhead.</li>
+          <li>• Workspace member role updates and removals are now stable.</li>
+          <li>• Landing page and auth flow refinements increased first-time clarity.</li>
+        </ul>
+      </div>
+    </div>
   );
 }
 
