@@ -60,7 +60,11 @@ export const env = {
    */
   historyRetainCount: Number(process.env.HISTORY_RETAIN_COUNT ?? 20),
   mongoUri: required('MONGO_URI'),
-  clientOrigin: process.env.CLIENT_ORIGIN ?? 'http://localhost:5173',
+  // Strip any trailing slash: CORS requires the Access-Control-Allow-Origin
+  // value to EXACTLY match the browser's Origin header (which has no trailing
+  // slash). A stray slash in CLIENT_ORIGIN silently breaks all credentialed
+  // cross-site requests ("Failed to fetch").
+  clientOrigin: (process.env.CLIENT_ORIGIN ?? 'http://localhost:5173').replace(/\/+$/, ''),
   cookieDomain: process.env.COOKIE_DOMAIN, // undefined → host-only cookie
 
   /* --- JWT --- */
@@ -83,7 +87,7 @@ export const env = {
   googleClientSecret: process.env.GOOGLE_CLIENT_SECRET ?? '',
   googleRedirectUri:
     process.env.GOOGLE_REDIRECT_URI ??
-    `${process.env.CLIENT_ORIGIN ?? 'http://localhost:5173'}/api/auth/oauth/google/callback`,
+    `${(process.env.CLIENT_ORIGIN ?? 'http://localhost:5173').replace(/\/+$/, '')}/api/auth/oauth/google/callback`,
 
   /* --- Storage --- */
   storageDriver: (process.env.STORAGE_DRIVER ?? 'local') as 'local' | 's3',
