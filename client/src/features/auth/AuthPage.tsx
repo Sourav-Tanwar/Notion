@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useAuthStore } from '@/stores/auth.store';
@@ -22,6 +22,8 @@ export function AuthPage({ mode }: Props): JSX.Element {
   const login = useAuthStore((s) => s.login);
   const signup = useAuthStore((s) => s.signup);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const from = searchParams.get('from') ?? '/';
 
   const [serverError, setServerError] = useState<string | null>(null);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
@@ -41,13 +43,13 @@ export function AuthPage({ mode }: Props): JSX.Element {
   const loginForm = useForm<LoginInput>({ resolver: zodResolver(loginSchema), mode: 'onBlur' });
   const signupForm = useForm<SignupInput>({ resolver: zodResolver(signupSchema), mode: 'onBlur' });
 
-  if (status === 'authed') return <Navigate to="/" replace />;
+  if (status === 'authed') return <Navigate to={from} replace />;
 
   async function onSubmitLogin(v: LoginInput) {
     setServerError(null);
     try {
       await login(v.email, v.password, captchaToken ?? undefined);
-      navigate('/');
+      navigate(from, { replace: true });
     } catch (e) {
       setServerError(humanize(e));
     }

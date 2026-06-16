@@ -53,7 +53,9 @@ function PrivateShell(): JSX.Element {
   // Unauthenticated visitors get the public landing page at the root, but any
   // deeper private route bounces to the login screen.
   if (status !== 'authed') {
-    return location.pathname === '/' ? <LandingPage /> : <Navigate to="/login" replace />;
+    return location.pathname === '/'
+      ? <LandingPage />
+      : <Navigate to={`/login?from=${encodeURIComponent(location.pathname + location.search)}`} replace />;
   }
   return (
     <div className="flex h-full">
