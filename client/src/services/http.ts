@@ -32,6 +32,15 @@ export const tokens = {
 // active tenant without the SPA having to thread it through every call site.
 import { getActiveWorkspaceId } from './activeWorkspace';
 
+// Base URL for the API. In production the SPA (Vercel) and the API (Render)
+// live on different origins, so VITE_API_ORIGIN is baked in at build time.
+// Locally it's empty, so requests stay relative and the Vite dev proxy / same
+// origin handles them.
+const API_ORIGIN = (import.meta.env.VITE_API_ORIGIN as string | undefined)?.replace(/\/+$/, '') ?? '';
+
+/** Public so full-page redirects (e.g. OAuth start) can target the API origin too. */
+export const apiOrigin = () => API_ORIGIN;
+
 export class ApiError extends Error {
   constructor(public status: number, message: string, public details?: unknown) {
     super(message);
@@ -50,7 +59,7 @@ export async function tryRefresh(): Promise<boolean> {
   if (refreshing) return refreshing;
   refreshing = (async () => {
     try {
-      const res = await fetch('/api/auth/refresh', { method: 'POST', credentials: 'include' });
+      const res = await fetch(`${API_ORIGIN}/api/auth/refresh`, { method: 'POST', credentials: 'include' });
       if (!res.ok) return false;
       const data = (await res.json()) as { accessToken: string };
       tokens.set(data.accessToken);
@@ -76,7 +85,7 @@ export async function api<T = unknown>(path: string, opts: Options = {}): Promis
     if (ws) h.set('x-workspace-id', ws);
   }
 
-  const res = await fetch(`/api${path}`, {
+  const res = await fetch(`${API_ORIGIN}/api${path}`, {
     ...rest,
     headers: h,
     body: json !== undefined ? JSON.stringify(json) : rest.body,
@@ -110,14 +119,14 @@ export async function apiUpload<T>(path: string, form: FormData): Promise<T> {
   if (accessToken) h.set('Authorization', `Bearer ${accessToken}`);
   const ws = getActiveWorkspaceId();
   if (ws && !path.startsWith('/workspaces')) h.set('x-workspace-id', ws);
-  const res = await fetch(`/api${path}`, { method: 'POST', body: form, headers: h, credentials: 'include' });
+  const res = await fetch(`${API_ORIGIN}/api${path}`, { method: 'POST', body: form, headers: h, credentials: 'include' });
   if (res.status === 401) {
     const ok = await tryRefresh();
     if (ok) {
       const h2 = new Headers();
       if (accessToken) h2.set('Authorization', `Bearer ${accessToken}`);
       if (ws && !path.startsWith('/workspaces')) h2.set('x-workspace-id', ws);
-      const res2 = await fetch(`/api${path}`, { method: 'POST', body: form, headers: h2, credentials: 'include' });
+      const res2 = await fetch(`${API_ORIGIN}/api${path}`, { method: 'POST', body: form, headers: h2, credentials: 'include' });
       const t2 = await res2.text();
       const d2 = t2 ? safeJson(t2) : undefined;
       if (!res2.ok) throw new ApiError(res2.status, (d2 as { error?: string })?.error ?? res2.statusText);

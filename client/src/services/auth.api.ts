@@ -1,4 +1,4 @@
-import { api, apiUpload } from './http';
+import { api, apiUpload, apiOrigin } from './http';
 import type { User } from '@/types/domain';
 
 export interface AuthResponse {
@@ -78,7 +78,7 @@ export const authApi = {
     api<{ ok: true }>('/auth/set-password', { method: 'POST', json: { token, password }, auth: false }),
 
   oauthStartUrl: (provider: 'google', redirect = '/') =>
-    `/api/auth/oauth/${provider}/start?redirect=${encodeURIComponent(redirect)}`,
+    `${apiOrigin()}/api/auth/oauth/${provider}/start?redirect=${encodeURIComponent(redirect)}`,
 
   /* ---- Public server config (used by the SPA to decide whether to render Turnstile) ---- */
   config: () => api<ServerConfig>('/auth/config', { auth: false }),
