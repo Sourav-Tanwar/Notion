@@ -5,9 +5,10 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "dev:realtime": "tsx watch src/realtime/index.ts",
-    "build": "tsc -p tsconfig.json",
-    "start": "node dist/index.js",
-    "start:realtime": "node dist/realtime/index.js",
+    "build": "echo \"No build step required; server runs via tsx at runtime\"",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "start": "tsx src/index.ts",
+    "start:realtime": "tsx src/realtime/index.ts",
     "migrate:workspaces": "tsx src/scripts/backfill-workspaces.ts"
   },
   "dependencies": {
@@ -23,6 +24,7 @@
     "mongoose": "^8.5.0",
     "multer": "^1.4.5-lts.1",
     "sharp": "^0.34.5",
+    "tsx": "^4.16.0",
     "ua-parser-js": "^2.0.10",
     "yjs": "^13.6.30",
     "zod": "^3.23.8"
@@ -36,7 +38,6 @@
     "@types/multer": "^1.4.11",
     "@types/node": "^20.14.0",
     "@types/ua-parser-js": "^0.7.39",
-    "tsx": "^4.16.0",
-    "typescript": "5.8.3"
+    "typescript": "^5.5.0"
   }
 }
