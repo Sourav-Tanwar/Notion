@@ -15,8 +15,13 @@ export const env = {
    * Realtime (Hocuspocus) listens on its own port so REST and WebSocket
    * processes can scale independently. The SPA computes its WS URL from
    * `VITE_REALTIME_URL` and never reaches this value directly.
+   *
+   * On platforms like Render the web service must bind to the injected
+   * `PORT`. When `REALTIME_PORT` is unset we fall back to `PORT` so the
+   * realtime service binds the port the platform is scanning, then to the
+   * local-dev default of 4001.
    */
-  realtimePort: Number(process.env.REALTIME_PORT ?? 4001),
+  realtimePort: Number(process.env.REALTIME_PORT ?? process.env.PORT ?? 4001),
   /**
    * Internal HTTP base URL used by the REST process to ping the realtime
    * process after structural block mutations (create/delete/reorder) so
