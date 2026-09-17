@@ -5,6 +5,7 @@ import type { AuthedRequest } from '../../middleware/auth.middleware';
 import { env, aiEnabled } from '../../config/env';
 import { streamChat, complete } from './ai.service';
 import { buildCommandMessages, buildAutocompleteMessages, temperatureFor, type AiAction } from './ai.prompts';
+import { validateAiCommandInput } from './ai.input';
 
 const ACTIONS = [
   'summarize',
@@ -46,10 +47,23 @@ export const status = (_req: AuthedRequest, res: Response): void => {
  */
 export const command = asyncHandler(async (req: AuthedRequest, res: Response) => {
   const body = req.body as z.infer<typeof commandSchema>;
+
+  let validated: { text: string; instruction: string };
+  try {
+    validated = validateAiCommandInput({
+      text: body.text,
+      instruction: body.instruction,
+    });
+  } catch (err) {
+    res.status(413);
+    res.json({ error: err instanceof Error ? err.message : 'AIInputTooLarge' });
+    return;
+  }
+
   const { system, user } = buildCommandMessages({
     action: body.action as AiAction,
-    text: body.text,
-    instruction: body.instruction,
+    text: validated.text,
+    instruction: validated.instruction,
     tone: body.tone,
     language: body.language,
   });
@@ -78,6 +92,7 @@ export const command = asyncHandler(async (req: AuthedRequest, res: Response) =>
   } catch (err) {
     const message = err instanceof Error ? err.message : 'AIError';
     send({ error: message });
+    send({ done: true });
   } finally {
     res.end();
   }

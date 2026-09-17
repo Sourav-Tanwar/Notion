@@ -68,6 +68,7 @@ export async function* streamChat(opts: ChatOptions): AsyncGenerator<string> {
   if (!res.ok || !res.body) {
     clearTimeout(timer);
     const detail = await res.text().catch(() => '');
+    console.error(`[ai] Groq error (${res.status}):`, detail.slice(0, 500));
     throw new HttpError(res.status === 429 ? 429 : 502, 'AIUpstreamError', detail.slice(0, 500));
   }
 
@@ -131,6 +132,7 @@ export async function complete(opts: Omit<ChatOptions, 'signal'> & { signal?: Ab
     });
     if (!res.ok) {
       const detail = await res.text().catch(() => '');
+      console.error(`[ai] Groq complete error (${res.status}):`, detail.slice(0, 500));
       throw new HttpError(res.status === 429 ? 429 : 502, 'AIUpstreamError', detail.slice(0, 500));
     }
     const json = (await res.json()) as {

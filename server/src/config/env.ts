@@ -30,7 +30,7 @@ export const env = {
    * port for both WebSocket upgrades and internal HTTP — Hocuspocus
    * exposes the HTTP server via the `onRequest` hook.
    */
-  realtimeInternalUrl: process.env.REALTIME_INTERNAL_URL ?? `http://127.0.0.1:${Number(process.env.REALTIME_PORT ?? 4001)}`,
+  realtimeInternalUrl: process.env.REALTIME_INTERNAL_URL ?? `http://127.0.0.1:${Number(process.env.REALTIME_PORT ?? process.env.PORT ?? 4001)}`,
   /**
    * Shared secret authenticating REST → realtime internal pings. Required
    * in production; defaults to a dev-only value if unset. Rotate together
@@ -123,13 +123,13 @@ export const env = {
    * key is absent so the rest of the app keeps working in environments
    * without it (CI, contributors without a key, etc.). */
   groqApiKey: process.env.GROQ_API_KEY ?? '',
-  // Groq's hosted models are free. Llama 3.3 70B is the quality default;
-  // override with a smaller/faster model (e.g. llama-3.1-8b-instant) to
+  // Groq's hosted models are free. GPT OSS 120B is the quality default;
+  // override with a smaller/faster model (e.g. openai/gpt-oss-20b) to
   // stretch the free quota further.
-  groqModel: process.env.GROQ_MODEL ?? 'llama-3.3-70b-versatile',
+  groqModel: process.env.GROQ_MODEL ?? 'openai/gpt-oss-120b',
   // A lighter model for autocomplete — it fires often, so favour the fast
-  // 8B model to conserve the daily request budget.
-  groqAutocompleteModel: process.env.GROQ_AUTOCOMPLETE_MODEL ?? 'llama-3.1-8b-instant',
+  // 20B model to conserve the daily request budget.
+  groqAutocompleteModel: process.env.GROQ_AUTOCOMPLETE_MODEL ?? 'openai/gpt-oss-20b',
   groqBaseUrl: process.env.GROQ_BASE_URL ?? 'https://api.groq.com/openai/v1',
 } as const;
 
